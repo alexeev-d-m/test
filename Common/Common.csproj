@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>netcoreapp3.1</TargetFramework>
+		<LangVersion>9.0</LangVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <Compile Update="Resources\TestData.Designer.cs">
+	    <DependentUpon>TestData.resx</DependentUpon>
+	    <DesignTime>True</DesignTime>
+	    <AutoGen>True</AutoGen>
+	  </Compile>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <EmbeddedResource Update="Resources\TestData.resx">
+	    <SubType>Designer</SubType>
+	    <LastGenOutput>TestData.Designer.cs</LastGenOutput>
+	    <Generator>ResXFileCodeGenerator</Generator>
+	  </EmbeddedResource>
+	</ItemGroup>
+
+</Project>
