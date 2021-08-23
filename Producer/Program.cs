@@ -19,7 +19,7 @@ namespace Producer
         Stopwatch stopwatch = new();
         stopwatch.Start();
 
-        FileGenerator fileGenerator = new(maxFileSizeInBytes: 50l * 1024 * 1024);
+        FileGenerator fileGenerator = new(maxFileSizeInBytes: 50L * 1024 * 1024, fileName: "50mb.txt");
         FileProcessingResult generatedFile = await fileGenerator.GenerateAsync();
         stopwatch.Stop();
 

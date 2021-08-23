@@ -2,8 +2,12 @@
 using Common.Models.Enums;
 using System;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+
+// Для тестирования в проекте Tests
+[assembly: InternalsVisibleTo("Tests")]
 
 namespace Producer.DAL
 {
@@ -16,14 +20,19 @@ namespace Producer.DAL
     /// Конструктор с возможностью указания максимальной длины размера файла в байтах
     /// </summary>
     /// <param name="maxFileSizeInBytes">Максимальный размер файла в байтах</param>
-    public FileGenerator(long maxFileSizeInBytes)
+    public FileGenerator(long maxFileSizeInBytes, string fileName)
     {
       if (maxFileSizeInBytes < 1)
       {
         throw new ArgumentOutOfRangeException(nameof(maxFileSizeInBytes), $"Must be greater then zero");
       }
+      else if (string.IsNullOrWhiteSpace(fileName))
+      {
+        throw new ArgumentNullException(nameof(fileName));
+      }
 
       _maxFileSizeInBytes = maxFileSizeInBytes;
+      _fileName = fileName;
     }
 
     /// <summary>
@@ -32,18 +41,21 @@ namespace Producer.DAL
     private readonly long _maxFileSizeInBytes;
 
     /// <summary>
+    /// Название файла
+    /// </summary>
+    private readonly string _fileName;
+
+    /// <summary>
     /// Генерирование файла
     /// </summary>
     /// <returns>Результат генерации файла</returns>
     public async Task<FileProcessingResult> GenerateAsync()
     {
-      const string FILE_NAME = "MessFileData_test_1Gb.txt";
-
       // Чтобы не писать по одной строке в файл, запись будет происходить пачками.
       // Размер подобран опытным путём.
       const long MAX_CONTENT_BATCH_LENGTH = 30_000;
       
-      FileInfo fileInfo = new(FILE_NAME);
+      FileInfo fileInfo = new(_fileName);
       if (fileInfo.Exists)
       {
         fileInfo.Delete();

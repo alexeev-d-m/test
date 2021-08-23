@@ -7,9 +7,13 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
+// Для тестирования в проекте Tests
+[assembly: InternalsVisibleTo("Tests")]
 
 namespace Consumer.DAL
 {
@@ -92,6 +96,7 @@ namespace Consumer.DAL
 
           nextMergeFiles.AddRange(mergeTasks.Select(mergeTask => mergeTask.GetAwaiter().GetResult()));
 
+          // Подготавливаем файлы к следующей итерации слияния
           currentMergingFiles = nextMergeFiles;
         }
         while (nextMergeFiles.Count > 1);
@@ -353,36 +358,47 @@ namespace Consumer.DAL
             // Дочитываем оставшуюся строку
             await AppendRemainingLineAsync(streamReader, shardBuilder);
 
-            FileInfo newShard = NewShard(shardsCounter++);
-            using StreamWriter fileWriter = new(newShard.FullName);
-            await fileWriter.WriteAsync(shardBuilder.ToString());
-            shardBuilder.Clear();
-            // Файл заполняется после формирования объекта FileInfo - как итог, без обновления состояния
-            // FileInfo считает, что файла нет.
-            newShard.Refresh();
-            shards.Add(newShard);
-            Logger.Info($"New shard created (\"{newShard.Name}\")");
+            shards.Add(await CreateShardAsync(shardsCounter++, shardBuilder));
           }
         } while (readCount > 0);
 
+        // Дописываем оставшиеся значения в новый осколок
+        if (shardBuilder.Length > 0)
+        {
+          shards.Add(await CreateShardAsync(shardsCounter++, shardBuilder));
+        }
+
         return shards;
 
-        static FileInfo NewShard(int number)
+        static async Task<FileInfo> CreateShardAsync(int shardNumber, StringBuilder shardBuilder)
         {
-          FileInfo shard = new($"Shards/Shard_{number}.txt");
+          FileInfo newShard = NewShard(shardNumber);
+          using StreamWriter fileWriter = new(newShard.FullName);
+          await fileWriter.WriteAsync(shardBuilder.ToString().Trim('\0'));
+          shardBuilder.Clear();
+          // Файл заполняется после формирования объекта FileInfo - как итог, без обновления состояния
+          // FileInfo считает, что файла нет.
+          newShard.Refresh();
+          Logger.Info($"New shard created (\"{newShard.Name}\")");
+          return newShard;
 
-          // Оставшиеся с предыдущей попытки файлы
-          if (shard.Exists)
+          static FileInfo NewShard(int number)
           {
-            shard.Delete();
-          }
+            FileInfo shard = new($"Shards/Shard_{number}.txt");
 
-          if (!shard.Directory.Exists)
-          {
-            shard.Directory.Create();
-          }
+            // Оставшиеся с предыдущей попытки осколки
+            if (shard.Exists)
+            {
+              shard.Delete();
+            }
 
-          return shard;
+            if (!shard.Directory.Exists)
+            {
+              shard.Directory.Create();
+            }
+
+            return shard;
+          }
         }
       }
     }

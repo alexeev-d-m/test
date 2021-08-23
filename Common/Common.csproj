@@ -6,6 +6,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <PackageReference Include="Confluent.Kafka" Version="1.7.0" />
+	</ItemGroup>
+
+	<ItemGroup>
 	  <Compile Update="Resources\TestData.Designer.cs">
 	    <DependentUpon>TestData.resx</DependentUpon>
 	    <DesignTime>True</DesignTime>
