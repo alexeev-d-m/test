@@ -20,8 +20,10 @@ namespace Tests
     [TestCase(1L * 1024 * 1024, "1mb.txt")]
     // 50 Mb - 28s
     [TestCase(50L * 1024 * 1024, "50mb.txt")]
-    // 1 Gb - ?
+    // 1 Gb - 12.5min
     [TestCase(1L * 1024 * 1024 * 1024, "1Gb.txt")]
+    // 2 Gb - ?
+    [TestCase(2L * 1024 * 1024 * 1024, "2Gb.txt")]
     public async Task GenerateAndSort_Success(long maxFileSizeInBytes, string fileName)
     {
       FileGenerator fileGenerator = new(maxFileSizeInBytes, fileName);
