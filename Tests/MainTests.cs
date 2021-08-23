@@ -16,14 +16,15 @@ namespace Tests
     /// Тестирование создания файла с его последующей сортировкой
     /// </summary>
     /// <remarks>Использование Kafka исключено в данной цепочке</remarks>
-    // 1 Mb - 0.6s
+    // 1 Mb - 0.6 s
     [TestCase(1L * 1024 * 1024, "1mb.txt")]
-    // 50 Mb - 28s
+    // 50 Mb - 28 s
     [TestCase(50L * 1024 * 1024, "50mb.txt")]
-    // 1 Gb - 12.5min
-    [TestCase(1L * 1024 * 1024 * 1024, "1Gb.txt")]
-    // 2 Gb - ?
-    [TestCase(2L * 1024 * 1024 * 1024, "2Gb.txt")]
+    // Длинные тесты - для сбора статистики!
+    //// 1 Gb - 12.5 min
+    //[TestCase(1L * 1024 * 1024 * 1024, "1Gb.txt")]
+    //// 2 Gb - 28 min
+    //[TestCase(2L * 1024 * 1024 * 1024, "2Gb.txt")]
     public async Task GenerateAndSort_Success(long maxFileSizeInBytes, string fileName)
     {
       FileGenerator fileGenerator = new(maxFileSizeInBytes, fileName);

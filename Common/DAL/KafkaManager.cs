@@ -25,7 +25,8 @@ namespace Common.DAL
       ProducerConfig config = new()
       {
         BootstrapServers = _BOOTSTRAP_SERVER,
-        ClientId = Dns.GetHostName()
+        ClientId = Dns.GetHostName(),
+        MessageTimeoutMs = 10_000
       };
 
       using IProducer<Null, string> producer = new ProducerBuilder<Null, string>(config).Build();
@@ -43,6 +44,8 @@ namespace Common.DAL
     /// </summary>
     /// <param name="topic">Топик, из которого надо считать сообщение</param>
     /// <returns>Сообщение, прочитанное из Kafka</returns>
+    /// <remarks>Для упрощения тестового приложения предполагается, что данный метод будет работать 
+    /// до тех пор, пока не прочтёт сообщение из Kafka</remarks>
     public async Task<string> ReadSingleMessageAsync(string topic)
     {
       await Task.Yield();
@@ -59,10 +62,10 @@ namespace Common.DAL
 
       consumer.Subscribe(topic);
 
-      //  while (!cancelled)
+      while (string.IsNullOrWhiteSpace(result))
       {
-        ConsumeResult<Ignore, string> consumeResult = consumer.Consume(timeout: TimeSpan.FromSeconds(3));
-
+        ConsumeResult<Ignore, string> consumeResult = consumer.Consume(timeout: TimeSpan.FromSeconds(15));
+        result = consumeResult.Message.Value;
       }
 
       consumer.Unsubscribe();
