@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Common.DAL;
+using System;
 
 namespace Common.Models
 {
@@ -14,12 +15,25 @@ namespace Common.Models
     {
       _random = new Random();
       _randomWords = Resources.TestData.Random_words_en.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+      _comparer = new NumberStringComparer();
+      MaxValue = new NumberString
+      {
+        Number = int.MaxValue,
+        // Немного слукавим: максимальное значение для строки это нонсенс, но будем считать, что 100 заданных
+        // подряд максимально возможных значений char дадут нам "максимальную" строку.
+        String = new string(char.MaxValue, 100)
+      };
     }
 
     /// <summary>
     /// Для генерации <see cref="Number"/>
     /// </summary>
     private static readonly Random _random;
+
+    /// <summary>
+    /// Для сравнения строк
+    /// </summary>
+    private static readonly NumberStringComparer _comparer;
 
     /// <summary>
     /// Слова для генерации <see cref="String"/>
@@ -58,15 +72,10 @@ namespace Common.Models
       };
 
     /// <summary>
-    /// Минимальное значение (т.е. при сортировке от меньшего к большему будет первым)
+    /// Максимальное значение (т.е. при сортировке от меньшего к большему будет последним)
     /// </summary>
-    /// <returns>Минимальное значение, которое может принять данный объект</returns>
-    public static NumberString MinValue
-      => new()
-      {
-        Number = int.MinValue,
-        String = null
-      };
+    /// <returns>Максимальное значение, которое может принять данный объект</returns>
+    public static readonly NumberString MaxValue;
 
     /// <summary>
     /// Преобразование строки в тип <see cref="NumberString"/>
@@ -78,10 +87,6 @@ namespace Common.Models
     {
       int separatorIndex = @string.IndexOf(_NUMBER_STRING_SEPARATOR);
 
-      if (separatorIndex < 1)
-      {
-
-      }
       return new NumberString
       {
         Number = int.Parse(@string[..separatorIndex]),
@@ -97,43 +102,19 @@ namespace Common.Models
     /// <summary>
     /// Сравнение: какое из значений меньше?
     /// </summary>
-    /// <param name="a">Первое сравниваемое значение</param>
-    /// <param name="b">Второе сравниваемое значение</param>
+    /// <param name="x">Первое сравниваемое значение</param>
+    /// <param name="y">Второе сравниваемое значение</param>
     /// <returns>true, если a <b>меньше</b> b</returns>
-    public static bool operator <(NumberString a, NumberString b)
-    {
-      int stringCompareResult = string.CompareOrdinal(a?.String, b?.String);
-
-      // Строковые части равны - сравниваем численные части
-      if (stringCompareResult == _STRINGS_ARE_EQUAL_CODE)
-      {
-        return a?.Number < b?.Number;
-      }
-      else
-      {
-        return stringCompareResult < 0;
-      }
-    }
+    public static bool operator <(NumberString x, NumberString y)
+      => _comparer.Compare(x, y) < 0;
 
     /// <summary>
     /// Сравнение: какое из значений больше?
     /// </summary>
-    /// <param name="a">Первое сравниваемое значение</param>
-    /// <param name="b">Второе сравниваемое значение</param>
+    /// <param name="x">Первое сравниваемое значение</param>
+    /// <param name="y">Второе сравниваемое значение</param>
     /// <returns>true, если a <b>больше</b> b</returns>
-    public static bool operator >(NumberString a, NumberString b)
-    {
-      int stringCompareResult = string.CompareOrdinal(a?.String, b?.String);
-
-      // Строковые части равны - сравниваем численные части
-      if (stringCompareResult == _STRINGS_ARE_EQUAL_CODE)
-      {
-        return a?.Number > b?.Number;
-      }
-      else
-      {
-        return stringCompareResult > 0;
-      }
-    }
+    public static bool operator >(NumberString x, NumberString y)
+      => _comparer.Compare(x, y) > 0;
   }
 }

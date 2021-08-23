@@ -1,4 +1,5 @@
-﻿using Common.DAL.Logger;
+﻿using Common.DAL;
+using Common.DAL.Logger;
 using Common.Models;
 using Common.Models.Enums;
 using System;
@@ -49,7 +50,6 @@ namespace Consumer.DAL
       await SortShardsContentAsync(fileShards);
 
       Logger.Info("Create sorted file");
-
       FileInfo sortedDataFile = await CreateSortedFileAsync(fileShards);
 
       return new FileProcessingResult(
@@ -113,12 +113,12 @@ namespace Consumer.DAL
 
           /*
            * Для каждого файла-осколка создаётся поток данных, с помощью которого будет заполняться очередь.
-           * Далее сравниваются данные в очередях с самым меньшим значением среди известных данных (обычный пузырёк).
+           * Далее сравниваются данные в очередях с самым меньшим значением среди известных данных.
            */
           Dictionary<StreamReader, Queue<NumberString>> shardsReaders = new();
           try
           {
-            // Инициализация потоков и очередей
+            // Инициализация потоков для чтения файлов и очередей для хранения промежуточных результатов
             foreach (FileInfo filePart in shards)
             {
               StreamReader fileDataReader = new(filePart.FullName);
@@ -135,23 +135,23 @@ namespace Consumer.DAL
 
             while (!isDone)
             {
-              // Значение, которое при сортировке попадёт в самое начало - для сравнения на первой итерации
-              NumberString lowestValue = NumberString.MinValue;
-              // Индекс очереди с меньшим значением
+              // По умолчанию задаём наибольшее возможное значение
+              NumberString lowestValue = NumberString.MaxValue;
+              // Поток для чтения очереди с меньшим значением
               StreamReader lowestValueReader = null;
 
               // Ищем "меньшее значение" в очередях
-              foreach (KeyValuePair<StreamReader, Queue<NumberString>> queueReader in shardsReaders)
+              foreach (KeyValuePair<StreamReader, Queue<NumberString>> shardReader in shardsReaders)
               {
-                if (queueReader.Value is not null
+                if (shardReader.Value is not null
                   &&
                   (
                     lowestValueReader is null
-                    || queueReader.Value.Peek() < lowestValue
+                    || shardReader.Value.Peek() < lowestValue
                   ))
                 {
-                  lowestValueReader = queueReader.Key;
-                  lowestValue = queueReader.Value.Peek();
+                  lowestValueReader = shardReader.Key;
+                  lowestValue = shardReader.Value.Peek();
                 }
               }
 
@@ -169,8 +169,7 @@ namespace Consumer.DAL
                 if (shardsReaders[lowestValueReader].Count == 0)
                 {
                   await LoadQueueAsync(shardsReaders[lowestValueReader], lowestValueReader);
-                  // Файл был пройден до конца: считаем, что с этой очередью больше нечего делать (сбрасываем её
-                  // в NULL)
+                  // Файл был пройден до конца: считаем, что с этой очередью больше нечего делать
                   if (shardsReaders[lowestValueReader].Count == 0)
                   {
                     shardsReaders[lowestValueReader] = null;
@@ -193,44 +192,7 @@ namespace Consumer.DAL
           return sortedDataFile;
 
           static async Task LoadQueueAsync(Queue<NumberString> queue, StreamReader dataReader)
-          {/*
-            const int CHAR_BUFFER_SIZE = 8_192;
-            const int MIN_QUEUE_SIZE = 1_000;
-            StringBuilder stringBuilder = new();
-            int readCount;
-
-            do
-            {
-              char[] buffer = new char[CHAR_BUFFER_SIZE];
-              readCount = await dataReader.ReadAsync(buffer, 0, buffer.Length);
-
-              if (readCount > 0)
-              {
-                stringBuilder.Append(new string(buffer));
-
-                // Дочитываем оставшуюся строку
-                await AppendRemainingLineAsync(dataReader, stringBuilder);
-
-                string[] dataStrings = stringBuilder.ToString().Trim()
-                  .Split('\n', StringSplitOptions.RemoveEmptyEntries);
-
-                foreach (string dataString in dataStrings)
-                {
-                  try
-                  {
-                    queue.Enqueue(NumberString.Parse(dataString.Trim()));
-                  }
-                  catch(Exception e)
-                  {
-
-                  }
-                }
-
-                stringBuilder.Clear();
-              }
-            } while (queue.Count < MIN_QUEUE_SIZE
-              && readCount > 0);
-            */
+          {
             int queueBatchSizeCounter = 1_000;
             string line = null;
             while ((line = await dataReader.ReadLineAsync()) is not null
@@ -252,6 +214,7 @@ namespace Consumer.DAL
         CancellationTokenSource cancelTokenSource = new();
         CancellationToken cancelToken = cancelTokenSource.Token;
         List<Task> sortTasks = new();
+
         foreach (FileInfo shard in shards)
         {
           sortTasks.Add(SortShardContentAsync(shard, cancelToken));
@@ -274,24 +237,31 @@ namespace Consumer.DAL
 
         return;
 
+        /*
+         * Поскольку файл осколка небольшой по размеру, его можно полностью загрузить в ОЗУ и отсортировать,
+         * избежав внешней сортировки на жёстком диске.
+         */
         static async Task SortShardContentAsync(FileInfo shard, CancellationToken cancelToken)
         {
+          NumberStringComparer numberStringComparer = new();
           if (!shard.Exists)
           {
             throw new FileNotFoundException("Shard not found", shard.FullName);
           }
 
           Logger.Info($"Read data from shard \"{shard.Name}\"");
-          IEnumerable<NumberString> shardData = await ReadDataFromShardAsync(shard, cancelToken);
+          IEnumerable<NumberString> shardData = await ReadShardDataAsync(shard, cancelToken);
 
           if (shardData.Any())
           {
             Logger.Info($"Starting sort shard \"{shard.Name}\"");
 
-            // Поскольку осколки имеют небольшой размер, решено применить к ним обычную сортировку из LINQ.
+            // Поскольку осколки имеют небольшой размер, решено применить к ним обычную сортировку из LINQ,
+            // не прибегая к помощи PLINQ/Task/Thread.
             await WriteSortedDataAsync(
               shard,
-              sortedData: shardData.OrderBy(item => item.String).ThenBy(item => item.Number),
+              //sortedData: shardData.OrderBy(item => item.String, stringComparer).ThenBy(item => item.Number),
+              sortedData: shardData.OrderBy(item => item, numberStringComparer),
               cancelToken);
 
             Logger.Info($"File \"{shard.Name}\" successfully sorted");
@@ -332,7 +302,7 @@ namespace Consumer.DAL
             }
           }
 
-          static async Task<IEnumerable<NumberString>> ReadDataFromShardAsync(
+          static async Task<IEnumerable<NumberString>> ReadShardDataAsync(
             FileInfo shard,
             CancellationToken cancelToken)
           {
@@ -369,6 +339,7 @@ namespace Consumer.DAL
         StringBuilder shardBuilder = new();
         using StreamReader streamReader = new(sourceFileInfo.FullName);
 
+        // Быстрее считывать в небольшой буфер обмена, а после дочитывать до конца строки, чем читать построчно.
         int readCount;
         do
         {
@@ -386,7 +357,7 @@ namespace Consumer.DAL
             using StreamWriter fileWriter = new(newShard.FullName);
             await fileWriter.WriteAsync(shardBuilder.ToString());
             shardBuilder.Clear();
-            // Файл создаётся после формирования объекта FileInfo - как итог, без обновления состояния
+            // Файл заполняется после формирования объекта FileInfo - как итог, без обновления состояния
             // FileInfo считает, что файла нет.
             newShard.Refresh();
             shards.Add(newShard);

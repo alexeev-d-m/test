@@ -4,7 +4,6 @@ using Consumer.DAL;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Consumer
@@ -17,8 +16,8 @@ namespace Consumer
 
       try
       {
-        //string fileName = @"C:\MessFileData_test_1Gb.txt";
-        string fileName = @"C:\MessFileData_test.txt";
+        //string fileName = @"C:\Users\Adiy\git\test\Producer\bin\Debug\netcoreapp3.1\MessFileData_test_1Gb.txt";
+        string fileName = @"C:\Users\Adiy\git\test\Producer\bin\Debug\netcoreapp3.1\MessFileData_test.txt";
 
         Stopwatch stopwatch = new();
         stopwatch.Start();
