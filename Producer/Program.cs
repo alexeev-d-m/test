@@ -1,4 +1,6 @@
-﻿using Common.DAL;
+﻿//#define USE_10GB_FILE
+
+using Common.DAL;
 using Common.DAL.Logger;
 using Common.Models;
 using Producer.DAL;
@@ -20,7 +22,13 @@ namespace Producer
         Stopwatch stopwatch = new();
         stopwatch.Start();
 
+#if USE_10GB_FILE
+        // 10 гигабайт - чтобы нагрузить алгоритмы генерации и сортировки
+        FileGenerator fileGenerator = new(maxFileSizeInBytes: 10L * 1024 * 1024 * 1024, fileName: "10Gb.txt");
+#else
+        // 50 мегабайт - достаточно для тестирования программы
         FileGenerator fileGenerator = new(maxFileSizeInBytes: 50L * 1024 * 1024, fileName: "50mb.txt");
+#endif
         FileProcessingResult generatedFile = await fileGenerator.GenerateAsync();
         stopwatch.Stop();
 
