@@ -1,8 +1,7 @@
-﻿using Common.DAL.Logger;
-using Common.Models;
+﻿using Common.DAL;
+using Common.DAL.Logger;
 using Consumer.DAL;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
@@ -16,18 +15,22 @@ namespace Consumer
 
       try
       {
-        //string fileName = @"C:\Users\Adiy\git\test\Producer\bin\Debug\netcoreapp3.1\MessFileData_test_1Gb.txt";
-        string fileName = @"C:\Users\Adiy\git\test\Producer\bin\Debug\netcoreapp3.1\MessFileData_test.txt";
+        Logger.Info("START");
+
+        KafkaManager kafkaManager = new();
+        string filePath = await kafkaManager.ReadSingleMessageAsync("quickstart-events");
+
+        Logger.Info($"Received file path ({filePath}) - sort it now!");
 
         Stopwatch stopwatch = new();
         stopwatch.Start();
 
-        SortManager sortManager = new(fileName);
+        SortManager sortManager = new(filePath);
         await sortManager.SortAsync();
 
         stopwatch.Stop();
 
-        Logger.Info($"Was sorted file {fileName}");
+        Logger.Info($"Was sorted file {filePath}");
         Logger.Info($"Sort time in seconds: {stopwatch.Elapsed.TotalSeconds}");
 
         Logger.Info("END");

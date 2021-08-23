@@ -1,4 +1,5 @@
-﻿using Common.DAL.Logger;
+﻿using Common.DAL;
+using Common.DAL.Logger;
 using Common.Models;
 using Producer.DAL;
 using System;
@@ -25,6 +26,10 @@ namespace Producer
 
         Logger.Info($"Was created file {generatedFile.Target}");
         Logger.Info($"Creation time in seconds: {stopwatch.Elapsed.TotalSeconds}");
+
+        Logger.Info("Send generated file path to kafka");
+        KafkaManager kafkaManager = new();
+        await kafkaManager.SendAsync("quickstart-events", generatedFile.Target);
 
         Logger.Info("END");
       }
