@@ -1,6 +1,7 @@
 ﻿using Confluent.Kafka;
 using System;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Common.DAL
@@ -46,10 +47,9 @@ namespace Common.DAL
     /// <returns>Сообщение, прочитанное из Kafka</returns>
     /// <remarks>Для упрощения тестового приложения предполагается, что данный метод будет работать 
     /// до тех пор, пока не прочтёт сообщение из Kafka</remarks>
-    public async Task<string> ReadSingleMessageAsync(string topic)
+    public Task<string> ReadSingleMessageAsync(string topic)
     {
-      await Task.Yield();
-
+      CancellationTokenSource cancellationTokenSource = new();
       string result = default;
       ConsumerConfig config = new()
       {
@@ -64,13 +64,13 @@ namespace Common.DAL
 
       while (string.IsNullOrWhiteSpace(result))
       {
-        ConsumeResult<Ignore, string> consumeResult = consumer.Consume(timeout: TimeSpan.FromSeconds(15));
-        result = consumeResult.Message.Value;
+        ConsumeResult<Ignore, string> consumeResult = consumer.Consume(cancellationTokenSource.Token);
+        result = consumeResult?.Message?.Value;
       }
 
       consumer.Unsubscribe();
 
-      return result;
+      return Task.FromResult(result);
     }
   }
 }
